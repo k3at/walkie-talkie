@@ -167,7 +167,8 @@ io.on('connection', (socket) => {
     const members = getMembers(roomId);
     if (!members.has(socket.id)) return;
     // relay to others
-    console.log('audio-chunk relay', socket.id.slice(0,6), '-> room', roomId, 'members', members.size, 'chunk bytes', (chunk && chunk.byteLength) || (chunk && chunk.length) || '?');
+    const ioRoom = io.sockets.adapter.rooms.get(roomId);
+    console.log('audio-chunk relay', socket.id.slice(0,6), '-> room', roomId, 'members', members.size, 'ioRoomSize', ioRoom ? ioRoom.size : 0, 'chunk bytes', (chunk && chunk.byteLength) || (chunk && chunk.length) || '?');
     socket.to(roomId).emit('audio-chunk', { from: socket.id, fromName: socket.data.displayName, chunk });
   });
 
