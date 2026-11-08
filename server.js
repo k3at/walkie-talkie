@@ -130,6 +130,7 @@ io.on('connection', (socket) => {
 
     members.set(socket.id, { displayName, userId: user ? user.id : null, isGuest: !user });
     socket.join(roomId);
+    console.log('join-room', socket.id.slice(0,6), displayName, '-> room', roomId, 'members now', members.size);
 
     // send existing peers to new client
     const peers = [];
