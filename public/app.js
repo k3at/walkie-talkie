@@ -15,8 +15,15 @@ const peers = new Map(); // peerId -> {pc, pending}
 const remoteAudios = new Map();
 let floorHolder = null; // socket id of current talker
 let iAmTalking = false;
+let wantStop = false;
 
-const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+const ICE = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+] };
 
 // ---------- views ----------
 function showView(name) {
@@ -167,6 +174,13 @@ function initSocket() {
     }
   });
   socket.on('ptt:granted', () => {
+    if (wantStop) {
+      // user already released; stop immediately
+      wantStop = false;
+      socket.emit('ptt:stop', { roomId: currentRoomId });
+      setMicEnabled(false);
+      return;
+    }
     iAmTalking = true;
     setMicEnabled(true);
     $('#ptt-btn').classList.add('pressing');
@@ -174,6 +188,9 @@ function initSocket() {
     $('#ptt-status').classList.add('talking');
   });
   socket.on('ptt:denied', ({ holder }) => {
+    setMicEnabled(false);
+    iAmTalking = false;
+    $('#ptt-btn').classList.remove('pressing');
     showRoomErr('القناة مشغولة');
   });
   socket.on('ptt:talking', ({ id, displayName: dn }) => {
@@ -191,6 +208,7 @@ function initSocket() {
     }
   });
   socket.on('ptt:stopped', ({ id }) => {
+    wantStop = false;
     if (floorHolder === id) floorHolder = null;
     if (id === socket.id) {
       iAmTalking = false;
@@ -211,11 +229,29 @@ function createPeer(peerId, initiator, name) {
   peers.set(peerId, st);
   if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   pc.onicecandidate = (e) => { if (e.candidate) socket.emit('ice-candidate', { to: peerId, candidate: e.candidate }); };
+  pc.onconnectionstatechange = () => { console.log('peer', peerId.slice(0,6), 'conn state:', pc.connectionState); };
+  pc.oniceconnectionstatechange = () => { console.log('peer', peerId.slice(0,6), 'ice state:', pc.iceConnectionState); };
   pc.ontrack = (e) => {
     let audio = remoteAudios.get(peerId);
-    if (!audio) { audio = document.createElement('audio'); audio.autoplay = true; audio.playsInline = true; document.body.appendChild(audio); remoteAudios.set(peerId, audio); }
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audio.volume = 1.0;
+      audio.muted = false;
+      document.body.appendChild(audio);
+      remoteAudios.set(peerId, audio);
+    }
     audio.srcObject = e.streams[0];
-    audio.play().catch(()=>{});
+    const tryPlay = () => { audio.play().then(()=>{}).catch(err => { console.warn('audio play blocked', err); }); };
+    tryPlay();
+    // retry when track unmutes
+    e.track.onunmute = () => { tryPlay(); };
+    e.track.onmute = () => { console.log('remote track muted', peerId); };
+    // also play on any user gesture
+    const gesturePlay = () => { remoteAudios.forEach(a => a.play().catch(()=>{})); };
+    document.addEventListener('click', gesturePlay, { once: false });
+    document.addEventListener('touchstart', gesturePlay, { once: false });
   };
   if (initiator) {
     pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
@@ -235,11 +271,14 @@ async function ensureMic() {
   if (localStream) return;
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log('mic granted, tracks:', localStream.getAudioTracks().length);
     // mute by default
     localStream.getAudioTracks().forEach(t => { t.enabled = false; });
     // add tracks to existing peers
     peers.forEach(st => {
-      localStream.getTracks().forEach(t => st.pc.addTrack(t, localStream));
+      localStream.getTracks().forEach(t => {
+        try { st.pc.addTrack(t, localStream); } catch(err){ console.warn('addTrack err', err); }
+      });
     });
   } catch (e) {
     showRoomErr('تعذر الوصول للميكروفون: ' + e.message);
@@ -355,12 +394,20 @@ function startTalk(e) {
   if (e) e.preventDefault();
   if (!currentRoomId || !socket) return;
   if (floorHolder && floorHolder !== socket.id) return; // someone else talking
+  // optimistic: enable mic immediately
+  setMicEnabled(true);
   socket.emit('ptt:start', { roomId: currentRoomId });
 }
 function stopTalk(e) {
   if (e) e.preventDefault();
   if (!currentRoomId || !socket) return;
-  if (iAmTalking) socket.emit('ptt:stop', { roomId: currentRoomId });
+  wantStop = true;
+  if (iAmTalking) {
+    iAmTalking = false;
+    setMicEnabled(false);
+    $('#ptt-btn').classList.remove('pressing');
+    socket.emit('ptt:stop', { roomId: currentRoomId });
+  }
 }
 pttBtn.addEventListener('mousedown', startTalk);
 pttBtn.addEventListener('mouseup', stopTalk);
@@ -397,6 +444,10 @@ function updateRoomMeta() {
   if (!currentRoom) return;
   const count = peers.size + 1;
   $('#room-meta').textContent = `المالك: ${currentRoom.owner_name} · ${currentRoom.type==='open'?'مفتوحة':'مغلقة'} · ${count} متصل`;
+}
+function enableAudio() {
+  remoteAudios.forEach(a => { a.muted = false; a.volume = 1.0; a.play().catch(e => console.warn('play err', e)); });
+  if (localStream) console.log('localStream tracks', localStream.getAudioTracks().map(t=>t.enabled));
 }
 function showRoomErr(m) { const el = $('#room-err'); if (el) { el.textContent = m; setTimeout(()=>{ if (el.textContent===m) el.textContent=''; }, 4000); } }
 
