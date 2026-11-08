@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<title>Walkie-Talkie Rooms</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>📻 Walkie-Talkie Rooms</h1>
+    <div class="userbox" id="userbox"></div>
+  </header>
+
+  <div id="view-auth" class="view active">
+    <div class="card">
+      <div class="tabs">
+        <button class="btn secondary" onclick="showTab('login')">تسجيل دخول</button>
+        <button class="btn secondary" onclick="showTab('register')">إنشاء حساب</button>
+        <button class="btn secondary" onclick="showTab('guest')">زائر</button>
+      </div>
+      <div id="tab-login">
+        <input id="login-user" placeholder="اسم المستخدم">
+        <input id="login-pass" type="password" placeholder="كلمة المرور">
+        <button class="btn" onclick="doLogin()">دخول</button>
+        <div id="login-err" class="err"></div>
+      </div>
+      <div id="tab-register" style="display:none">
+        <input id="reg-user" placeholder="اسم المستخدم (3-24)">
+        <input id="reg-pass" type="password" placeholder="كلمة المرور (>=4)">
+        <button class="btn" onclick="doRegister()">إنشاء</button>
+        <div id="reg-err" class="err"></div>
+      </div>
+      <div id="tab-guest" style="display:none">
+        <p class="small">الزوار يمكنهم الانضمام للغرف المفتوحة فقط.</p>
+        <input id="guest-name" placeholder="اسمك (زائر)">
+        <button class="btn" onclick="doGuest()">Continue as guest</button>
+        <div id="guest-err" class="err"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-rooms" class="view">
+    <div class="card">
+      <h3>إنشاء غرفة</h3>
+      <input id="room-name" placeholder="اسم الغرفة">
+      <select id="room-type">
+        <option value="open">مفتوحة (للجميع)</option>
+        <option value="closed">مغلقة (برقم سري)</option>
+      </select>
+      <input id="room-pass" placeholder="كلمة مرور (للمغلقة)" style="display:none">
+      <button class="btn" onclick="createRoom()">إنشاء غرفة</button>
+      <div id="create-err" class="err"></div>
+      <div id="create-ok" class="ok"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <h3 style="margin:0;flex:1">الغرف</h3>
+        <button class="btn secondary" onclick="loadRooms()">🔄 تحديث</button>
+      </div>
+      <div id="rooms-list"></div>
+    </div>
+  </div>
+
+  <div id="view-room" class="view">
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <h3 id="room-title" style="margin:0;flex:1"></h3>
+        <button class="btn secondary" onclick="leaveRoom()">مغادرة</button>
+      </div>
+      <div id="room-meta" class="small"></div>
+    </div>
+    <div class="card">
+      <h4>المتصلون</h4>
+      <div class="peers" id="peers"></div>
+    </div>
+    <div class="card">
+      <div class="ptt-wrap">
+        <button id="ptt-btn" class="ptt-btn" disabled>اضغط للتحدث</button>
+        <div id="ptt-status" class="status">اضغط مع الاستمرار للتحدث</div>
+      </div>
+      <div id="room-err" class="err"></div>
+    </div>
+  </div>
+</div>
+
+<div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:50">
+  <div class="card" style="max-width:360px;width:90%">
+    <h3>كلمة مرور الغرفة</h3>
+    <input id="pw-input" type="password" placeholder="كلمة المرور">
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="submitPw()">انضمام</button>
+      <button class="btn secondary" onclick="closePw()">إلغاء</button>
+    </div>
+    <div id="pw-err" class="err"></div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
