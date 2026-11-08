@@ -256,6 +256,7 @@ function handleAudioChunk(from, fromName, chunk) {
     r.audio.src = URL.createObjectURL(r.mediaSource);
     document.body.appendChild(r.audio);
     r.audio.play().catch(e => { console.warn('autoplay blocked', e); });
+    r.audio.addEventListener('ended', () => { try { r.audio.remove(); } catch(e){} });
     r.mediaSource.addEventListener('sourceopen', () => {
       try {
         r.sourceBuffer = r.mediaSource.addSourceBuffer('audio/webm;codecs=opus');
