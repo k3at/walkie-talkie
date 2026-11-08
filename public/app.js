@@ -16,6 +16,12 @@ let mediaRecorder = null;
 let floorHolder = null;
 let iAmTalking = false;
 let wantStop = false;
+let chunksSent = 0;
+let chunksReceived = 0;
+function updateAudioDebug() {
+  const el = document.getElementById('audio-debug');
+  if (el) el.textContent = `📊 chunks sent: ${chunksSent} | received: ${chunksReceived}`;
+}
 
 // ---------- views ----------
 function showView(name) {
@@ -228,6 +234,8 @@ function startRecording() {
   mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0 && currentRoomId && socket) {
       e.data.arrayBuffer().then(buf => {
+        chunksSent++;
+        updateAudioDebug();
         socket.emit('audio-chunk', { roomId: currentRoomId, chunk: buf });
       });
     }
@@ -244,6 +252,8 @@ function stopRecording() {
 
 // ---------- audio playback (MediaSource) ----------
 function handleAudioChunk(from, fromName, chunk) {
+  chunksReceived++;
+  updateAudioDebug();
   let r = receivers.get(from);
   if (!r || r.ended) {
     r = { mediaSource: new MediaSource(), sourceBuffer: null, queue: [], audio: null, ended: false };
@@ -384,7 +394,7 @@ function leaveRoom() {
   receivers.clear();
   stopRecording();
   stopLocalStream();
-  currentRoomId = null; currentRoom = null; floorHolder = null; iAmTalking = false; wantStop = false;
+  currentRoomId = null; currentRoom = null; floorHolder = null; iAmTalking = false; wantStop = false; chunksSent = 0; chunksReceived = 0; updateAudioDebug();
   $('#ptt-btn').disabled = true;
   $('#ptt-btn').classList.remove('pressing');
   showView('rooms');
