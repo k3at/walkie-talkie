@@ -83,8 +83,10 @@
         <button id="ptt-btn" class="ptt-btn" disabled>اضغط للتحدث</button>
         <div id="ptt-status" class="status">اضغط مع الاستمرار للتحدث</div>
       </div>
+      <div id="mic-status" class="small" style="margin:8px 0">🎤 الميكروفون: غير مفعل</div>
+      <button class="btn secondary" onclick="requestMic()" style="margin:4px 4px 4px 0">🎤 تفعيل الميكروفون</button>
+      <button class="btn secondary" onclick="enableAudio()" style="margin:4px 0">🔊 تفعيل الصوت</button>
       <div id="room-err" class="err"></div>
-      <button class="btn secondary" onclick="enableAudio()" style="margin-top:8px">🔊 تفعيل الصوت</button>
     </div>
   </div>
 </div>
