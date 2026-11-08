@@ -159,6 +159,17 @@ io.on('connection', (socket) => {
     io.to(to).emit('ice-candidate', { from: socket.id, candidate });
   });
 
+  // Audio streaming (WebSocket relay) for PTT
+  socket.on('audio-chunk', ({ roomId, chunk }) => {
+    roomId = roomId || socket.data.roomId;
+    if (!roomId || socket.data.roomId !== roomId) return;
+    const members = getMembers(roomId);
+    if (!members.has(socket.id)) return;
+    // relay to others
+    console.log('audio-chunk relay', socket.id.slice(0,6), '-> room', roomId, 'members', members.size, 'chunk bytes', (chunk && chunk.byteLength) || (chunk && chunk.length) || '?');
+    socket.to(roomId).emit('audio-chunk', { from: socket.id, fromName: socket.data.displayName, chunk });
+  });
+
   // PTT floor control
   socket.on('ptt:start', ({ roomId }) => {
     roomId = roomId || socket.data.roomId;
