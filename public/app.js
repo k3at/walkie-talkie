@@ -106,8 +106,13 @@ function doGuest() {
 // ---------- socket ----------
 function initSocket() {
   if (socket) socket.disconnect();
-  socket = io();
-  socket.on('connect', () => {});
+  socket = io({ reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000 });
+  socket.on('connect', () => {
+    // re-join current room after reconnect
+    if (currentRoomId) {
+      socket.emit('join-room', { roomId: currentRoomId, token: token || null, guestName: isGuest ? guestName : undefined });
+    }
+  });
   socket.on('error-msg', (m) => { showRoomErr(m); });
   socket.on('room-joined', ({ roomId, room, peers: peerList, selfId }) => {
     currentRoomId = roomId;
